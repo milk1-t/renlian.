@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 人脸表情识别系统</title>
+    <link href="{{ url_for('static', filename='new/font-awesome.min.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='framework/jquery-1.11.3.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='new/tailwindcss.js') }}"></script>
+    <script src="{{ url_for('static', filename='new/layer.js') }}"></script>
+    <link href="{{ url_for('static', filename='new/layer.css') }}" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-login {
+                @apply w-full bg-blue-500 text-white py-3 rounded-lg font-medium transition-all duration-300;
+            }
+            .btn-login:hover {
+                @apply bg-blue-600 shadow-lg shadow-blue-500/30;
+            }
+            .input-field {
+                @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300;
+            }
+        }
+    </style>
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --light-blue: #3b82f6;
+            --dark-blue: #1d4ed8;
+            --bg-white: #ffffff;
+            --bg-light: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            min-height: 100vh;
+        }
+        
+        .login-container {
+            background: var(--bg-white);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(37, 99, 235, 0.15);
+        }
+        
+        .login-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--light-blue) 100%);
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper input {
+            padding-left: 45px;
+        }
+        
+        .decoration-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.1);
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <!-- 装饰圆球 -->
+    <div class="decoration-circle w-32 h-32 -top-16 -left-16 float-animation" style="position: fixed;"></div>
+    <div class="decoration-circle w-24 h-24 bottom-20 right-20 float-animation" style="position: fixed; animation-delay: 1s;"></div>
+    <div class="decoration-circle w-16 h-16 top-1/3 right-10 float-animation" style="position: fixed; animation-delay: 0.5s;"></div>
+    
+    <div class="login-container w-full max-w-md overflow-hidden">
+        <!-- 头部 -->
+        <div class="login-header p-8 text-center">
+            <div class="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
+                <i class="fa fa-user-circle-o text-5xl text-blue-500"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-white">人脸表情识别系统</h1>
+            <p class="text-blue-100 mt-2">Face Expression Recognition</p>
+        </div>
+        
+        <!-- 登录表单 -->
+        <div class="p-8">
+            <form method="POST" action="" id="loginForm">
+                <!-- 用户名 -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fa fa-user mr-2 text-blue-500"></i>用户名
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="fa fa-user input-icon"></i>
+                        <input type="text" name="username" class="input-field" 
+                               placeholder="请输入用户名" required autocomplete="username">
+                    </div>
+                </div>
+                
+                <!-- 密码 -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-medium mb-2">
+                        <i class="fa fa-lock mr-2 text-blue-500"></i>密码
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="fa fa-lock input-icon"></i>
+                        <input type="password" name="password" class="input-field" 
+                               placeholder="请输入密码" required autocomplete="current-password">
+                    </div>
+                </div>
+                
+                <!-- 登录按钮 -->
+                <button type="submit" class="btn-login">
+                    <i class="fa fa-sign-in mr-2"></i>登 录
+                </button>
+            </form>
+            
+            <!-- 注册链接 -->
+            <div class="mt-6 text-center">
+                <a href="{{ url_for('register') }}" class="text-blue-500 hover:text-blue-600 text-sm">
+                    <i class="fa fa-user-plus mr-1"></i>没有账号？去注册
+                </a>
+            </div>
+        </div>
+        
+        <!-- 底部 -->
+        <div class="bg-gray-50 px-8 py-4 text-center border-t border-gray-100">
+            <p class="text-gray-400 text-sm">
+                <i class="fa fa-copyright mr-1"></i>
+                2026 人脸表情识别系统 - 百度AI开放平台
+            </p>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // 表单提交
+            $('#loginForm').on('submit', function(e) {
+                var username = $('input[name="username"]').val().trim();
+                var password = $('input[name="password"]').val().trim();
+                
+                if (!username || !password) {
+                    layer.msg('请填写用户名和密码', {icon: 2});
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        });
+        
+        // 显示flash消息
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category == 'success' %}
+                        layer.msg('{{ message }}', {icon: 1, time: 2000});
+                    {% elif category == 'error' %}
+                        layer.msg('{{ message }}', {icon: 2, time: 2000});
+                    {% else %}
+                        layer.msg('{{ message }}', {icon: 0, time: 2000});
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </script>
+</body>
+</html>

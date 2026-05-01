@@ -1,0 +1,770 @@
+{% extends "base.html" %}
+
+{% block title %}人脸识别 - 人脸表情识别系统{% endblock %}
+
+{% block breadcrumb %}人脸识别{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-area {
+        border: 2px dashed #3b82f6;
+        border-radius: 12px;
+        padding: 40px;
+    text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    }
+    
+    .upload-area:hover {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    }
+    
+    .upload-area.dragover {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        transform: scale(1.02);
+    }
+    
+    .preview-image {
+    max-width: 100%;
+    max-height: 400px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.15);
+    display: block;
+    margin: 0 auto;
+    }
+    
+    .result-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+        transition: all 0.3s;
+    }
+    
+    .result-card:hover {
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
+    }
+    
+    .result-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .result-label {
+        color: #64748b;
+        font-size: 14px;
+    }
+    
+    .result-value {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .confidence-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .confidence-high {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+    
+    .confidence-medium {
+        background: #ffedd5;
+        color: #ea580c;
+    }
+    
+    .confidence-low {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .emotion-icon {
+        font-size: 24px;
+        margin-right: 8px;
+    }
+    
+    .stat-box {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .stat-box .value {
+        font-size: 32px;
+        font-weight: 700;
+    }
+    
+    .stat-box .label {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-top: 4px;
+    }
+    
+    .upload-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+    }
+    
+    .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+    }
+    
+    .detect-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 14px 40px;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+    }
+    
+    .detect-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+    }
+    
+    .detect-btn:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .loading-spinner {
+        border: 3px solid #e2e8f0;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .face-result-section {
+        display: none;
+    }
+    
+    .face-result-section.show {
+        display: block;
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .no-face-alert {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 16px;
+        color: #92400e;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table th, .table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+        text-align: left;
+        vertical-align: top;
+    }
+    .pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #dbeafe;
+    }
+    .pill-warn {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fed7aa;
+    }
+    .pill-danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border-color: #fecaca;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- 上传区域 -->
+    <div class="content-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa fa-upload mr-2 text-blue-500"></i>上传图片
+            </h3>
+        </div>
+        <div class="card-body">
+            <!-- 上传表单 -->
+            <form id="uploadForm" enctype="multipart/form-data" method="POST" action="">
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" name="file" accept="image/*" style="display: none;">
+                    <div id="uploadPrompt">
+                        <i class="fa fa-cloud-upload text-5xl text-blue-500 mb-4"></i>
+                        <p class="text-lg text-gray-700 font-medium">点击或拖拽图片到这里</p>
+                        <p class="text-sm text-gray-500 mt-2">支持 JPG、PNG、BMP 格式</p>
+                    </div>
+                    <img id="previewImage" class="preview-image" style="display: none;">
+                </div>
+                
+                <div class="flex justify-center gap-4 mt-6">
+                    <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa fa-folder-open mr-2"></i>选择图片
+                    </button>
+                    <button type="submit" class="detect-btn" id="detectBtn">
+                        <i class="fa fa-search mr-2"></i>开始识别
+                    </button>
+                </div>
+            </form>
+            
+            <!-- 加载中 -->
+            <div id="loadingSection" class="text-center py-8" style="display: none;">
+                <div class="loading-spinner mb-4"></div>
+                <p class="text-gray-600">正在进行人脸识别...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 结果显示区域 -->
+    <div class="content-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa fa-info-circle mr-2 text-blue-500"></i>识别结果
+            </h3>
+        </div>
+        <div class="card-body">
+            <!-- 初始提示 -->
+            <div id="initPrompt" class="text-center py-12">
+                <i class="fa fa-user-circle-o text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">请先上传图片进行人脸识别</p>
+            </div>
+            
+            <!-- 无面部提示 -->
+            <div id="noFaceAlert" class="no-face-alert" style="display: none;">
+                <i class="fa fa-exclamation-triangle mr-2"></i>
+                <span>未检测到人脸，请上传包含人脸的图片</span>
+            </div>
+            
+            <!-- 结果展示 -->
+            <div id="resultSection" class="face-result-section">
+                <!-- 人脸数量 -->
+                <div class="grid grid-cols-1 gap-4 mb-6">
+                    <div class="stat-box">
+                        <div class="value" id="resultFaceCount">-</div>
+                        <div class="label">人脸数量</div>
+                    </div>
+                </div>
+
+                <!-- 全部人脸（逐个渲染） -->
+                <div class="result-card" id="allFacesCard" style="display:none;">
+                    <h4 class="font-semibold text-gray-800 mb-4">
+                        <i class="fa fa-users mr-2 text-blue-500"></i>全部人脸信息（逐个）
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="table" id="allFacesTable">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>坐标</th>
+                                    <th>性别</th>
+                                    <th>脸型</th>
+                                    <th>眼镜</th>
+                                    <th>口罩</th>
+                                    <th>情绪</th>
+                                    <th>眼睛状态</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- JSON原始数据 -->
+                <div class="result-card">
+                    <h4 class="font-semibold text-gray-800 mb-4">
+                        <i class="fa fa-code mr-2 text-blue-500"></i>原始数据
+                    </h4>
+                    <pre id="jsonResult" class="bg-gray-50 p-4 rounded-lg text-xs overflow-x-auto" style="max-height: 200px;"></pre>
+                </div>
+
+                <!-- 教室统计（分级显示） -->
+                <div class="result-card" id="classroomStatsCard" style="display:none;">
+                    <h4 class="font-semibold text-gray-800 mb-4 cursor-pointer select-none" id="classroomStatsHeader">
+                        <i class="fa fa-bar-chart mr-2 text-blue-500"></i>教室情绪统计
+                        <i class="fa fa-chevron-down ml-2 text-gray-400 toggle-icon" id="classroomStatsToggle"></i>
+                    </h4>
+                    <div id="classroomStatsBody">
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="result-item">
+                                <span class="result-label">检测到人数</span>
+                                <span class="result-value" id="statTotalFaces">-</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">状态良好</span>
+                                <span class="result-value" id="statGoodCount">-</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">需要关注/重点关注</span>
+                                <span class="result-value" id="statNeedCareCount">-</span>
+                            </div>
+                        </div>
+
+                        <div class="result-item">
+                            <span class="result-label">二级情绪分布</span>
+                            <span class="result-value" id="statSecondaryEmotionCounts">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 重点关注（分级显示） -->
+                <div class="result-card" id="focusStudentsCard" style="display:none;">
+                    <h4 class="font-semibold text-gray-800 mb-4 cursor-pointer select-none" id="focusStudentsHeader">
+                        <i class="fa fa-exclamation-circle mr-2 text-blue-500"></i>需要重点关注学生（座位/坐标汇总）
+                        <i class="fa fa-chevron-down ml-2 text-gray-400 toggle-icon" id="focusStudentsToggle"></i>
+                    </h4>
+                    <div id="focusStudentsBody">
+                        <div id="focusStudentsEmpty" class="text-sm text-gray-500" style="display:none;">本次未发现需要重点关注的学生。</div>
+                        <div class="overflow-x-auto">
+                            <table class="table" id="focusStudentsTable" style="display:none;">
+                                <thead>
+                                    <tr>
+                                        <th>人脸坐标</th>
+                                        <th>情绪</th>
+                                        <th>置信区间</th>
+                                        <th>原因</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 明细（分级显示） -->
+                <div class="result-card" id="facesDetailCard" style="display:none;">
+                    <h4 class="font-semibold text-gray-800 mb-4 cursor-pointer select-none" id="facesDetailHeader">
+                        <i class="fa fa-list mr-2 text-blue-500"></i>座位表情识别明细
+                        <i class="fa fa-chevron-down ml-2 text-gray-400 toggle-icon" id="facesDetailToggle"></i>
+                    </h4>
+                    <div id="facesDetailBody">
+                        <div class="overflow-x-auto">
+                            <table class="table" id="facesDetailTable">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>人脸坐标</th>
+                                        <th>二级情绪</th>
+                                        <th>原始情绪</th>
+                                        <th>置信区间</th>
+                                        <th>心理状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 文件上传处理
+    const fileInput = $('#fileInput');
+    const uploadArea = $('#uploadArea');
+    const previewImage = $('#previewImage');
+    const uploadPrompt = $('#uploadPrompt');
+    const uploadForm = $('#uploadForm');
+    const detectBtn = $('#detectBtn');
+    const loadingSection = $('#loadingSection');
+    const initPrompt = $('#initPrompt');
+    const noFaceAlert = $('#noFaceAlert');
+    const resultSection = $('#resultSection');
+    
+    // 点击上传区域触发文件选择（避免递归触发）
+    uploadArea.on('click', function(e) {
+        // 如果点击事件本身就是来自隐藏的 fileInput（包括脚本触发），则不再二次触发
+        if (e.target === fileInput[0]) {
+            return;
+        }
+        fileInput.trigger('click');
+    });
+    
+    // 文件选择后显示预览
+    fileInput.on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.attr('src', e.target.result).show();
+                uploadPrompt.hide();
+            };
+            reader.readAsDataURL(file);
+            
+            // 重置结果区域
+            initPrompt.show();
+            noFaceAlert.hide();
+            resultSection.removeClass('show');
+        }
+    });
+    
+    // 拖拽上传
+    uploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        $(this).addClass('dragover');
+    });
+    
+    uploadArea.on('dragleave', function() {
+        $(this).removeClass('dragover');
+    });
+    
+    uploadArea.on('drop', function(e) {
+        e.preventDefault();
+        $(this).removeClass('dragover');
+        
+        const file = e.originalEvent.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            fileInput[0].files = e.originalEvent.dataTransfer.files;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.attr('src', e.target.result).show();
+                uploadPrompt.hide();
+            };
+            reader.readAsDataURL(file);
+            
+            // 重置结果区域
+            initPrompt.show();
+            noFaceAlert.hide();
+            resultSection.removeClass('show');
+        }
+    });
+    
+    // 提交表单进行识别
+    uploadForm.on('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput[0].files[0];
+        if (!file) {
+            layer.msg('请先选择图片', {icon: 2});
+            return;
+        }
+        
+        // 显示加载动画
+        detectBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-2"></i>识别中...');
+        loadingSection.show();
+        initPrompt.hide();
+        noFaceAlert.hide();
+        resultSection.removeClass('show');
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // 发送Ajax请求
+        $.ajax({
+            url: '{{ url_for("detect") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                loadingSection.hide();
+                detectBtn.prop('disabled', false).html('<i class="fa fa-search mr-2"></i>开始识别');
+                
+                if (response.error) {
+                    layer.msg(response.error, {icon: 2});
+                    initPrompt.show();
+                    return;
+                }
+                
+                // 以后端计算出的 faces 数量为准，避免 raw.result.face_num 偶发不一致
+                if (response.faces && Array.isArray(response.faces) && response.faces.length === 0) {
+                    noFaceAlert.show();
+                    return;
+                }
+                
+                // 显示结果
+                displayResult(response);
+            },
+            error: function(xhr, status, error) {
+                loadingSection.hide();
+                detectBtn.prop('disabled', false).html('<i class="fa fa-search mr-2"></i>开始识别');
+                layer.msg('识别失败: ' + error, {icon: 2});
+                initPrompt.show();
+            }
+        });
+    });
+    
+    // 显示识别结果（按百度人脸检测 v3 返回结构解析）
+    function displayResult(data) {
+        // 新后端结构：{ raw, faces, stats, seat_layout_meta }
+        // 兼容旧结构：直接是百度 raw
+        const raw = data.raw || data;
+        const result = raw.result || {};
+        const faceList = result.face_list || [];
+        
+        if (!faceList.length) {
+            noFaceAlert.show();
+            return;
+        }
+
+        // 人脸数量（以 face_list 的实际长度为准）
+        $('#resultFaceCount').text(faceList.length != null ? faceList.length : '-');
+        
+        // JSON原始数据（显示完整返回便于调试）
+        $('#jsonResult').text(JSON.stringify(data, null, 4));
+
+        // ===== 新增：教室统计 / 重点关注 / 明细 =====
+        const stats = data.stats || null;
+        const faces = data.faces || null;
+
+        // 统计
+        if (stats) {
+            $('#classroomStatsCard').show();
+            $('#statTotalFaces').text(stats.total_faces != null ? stats.total_faces : '-');
+            const sc = stats.status_counts || {};
+            const good = sc['状态良好'] || 0;
+            const watch = sc['需要关注'] || 0;
+            const focus = sc['需要重点关注'] || 0;
+            $('#statGoodCount').text(good);
+            $('#statNeedCareCount').text((watch + focus) + '（关注' + watch + ' / 重点' + focus + '）');
+
+            const secCounts = stats.secondary_emotion_counts || {};
+            const parts = Object.keys(secCounts).map(k => k + ' ' + secCounts[k] + '人');
+            $('#statSecondaryEmotionCounts').text(parts.length ? parts.join('，') : '-');
+        } else {
+            $('#classroomStatsCard').hide();
+        }
+
+        function fmtInterval(p) {
+            if (p == null) return '-';
+            const v = p * 100;
+            return (Math.max(0, v - 5)).toFixed(1) + '%-' + (Math.min(100, v + 5)).toFixed(1) + '%';
+        }
+
+        // 重点关注表格（人脸坐标）
+        const focusStudents = (stats && stats.focus_students) ? stats.focus_students : [];
+        $('#focusStudentsCard').show();
+        const tbody = $('#focusStudentsTable tbody');
+        tbody.empty();
+        if (!focusStudents.length) {
+            $('#focusStudentsEmpty').show();
+            $('#focusStudentsTable').hide();
+        } else {
+            $('#focusStudentsEmpty').hide();
+            $('#focusStudentsTable').show();
+            focusStudents.forEach(item => {
+                const center = item.face_center || {};
+                const xy = (center.x != null && center.y != null) ? '(' + Math.round(center.x) + ', ' + Math.round(center.y) + ')' : '-';
+                const emo = item.emotion || '-';
+                const interval = fmtInterval(item.emotion_prob);
+                const reason = item.reason || '-';
+                tbody.append('<tr><td>' + xy + '</td><td>' + emo + '</td><td>' + interval + '</td><td>' + reason + '</td></tr>');
+            });
+        }
+
+        // 明细表格（人脸坐标）
+        if (faces && Array.isArray(faces)) {
+            $('#facesDetailCard').show();
+            const detailTbody = $('#facesDetailTable tbody');
+            detailTbody.empty();
+            faces.forEach((f, idx) => {
+                const center = f.face_center || {};
+                const xy = (center.x != null && center.y != null) ? '(' + Math.round(center.x) + ', ' + Math.round(center.y) + ')' : '-';
+                const sec = f.secondary_emotion_cn || '-';
+                const emo = f.emotion_cn || '-';
+                const interval = fmtInterval(f.emotion_prob);
+                const psych = (f.psych && f.psych.status_cn) ? f.psych.status_cn : '-';
+                let pillClass = 'pill';
+                if (psych === '需要关注') pillClass = 'pill pill-warn';
+                if (psych === '需要重点关注') pillClass = 'pill pill-danger';
+                detailTbody.append('<tr><td>' + (idx + 1) + '</td><td>' + xy + '</td><td>' + sec + '</td><td>' + emo + '</td><td>' + interval + '</td><td><span class="' + pillClass + '">' + psych + '</span></td></tr>');
+            });
+        } else {
+            $('#facesDetailCard').hide();
+        }
+
+        // 全部人脸信息（按百度返回逐个展示）
+        if (faceList && Array.isArray(faceList) && faceList.length) {
+            $('#allFacesCard').show();
+            const tbody = $('#allFacesTable tbody');
+            tbody.empty();
+
+            function probToInterval(p) {
+                if (p == null) return '-';
+                const v = p * 100;
+                return (Math.max(0, v - 5)).toFixed(1) + '%-' + (Math.min(100, v + 5)).toFixed(1) + '%';
+            }
+
+            function fmtFaceCenter(loc) {
+                loc = loc || {};
+                const l = parseFloat(loc.left);
+                const t = parseFloat(loc.top);
+                const w = parseFloat(loc.width);
+                const h = parseFloat(loc.height);
+                if ([l, t, w, h].some(function(x) { return isNaN(x); })) return '-';
+                const cx = Math.round(l + w / 2);
+                const cy = Math.round(t + h / 2);
+                return '(' + cx + ', ' + cy + ')';
+            }
+
+            const genderMap = { male: '男性', female: '女性' };
+            const faceShapeMap = {
+                square: '方形',
+                triangle: '三角形',
+                oval: '椭圆',
+                heart: '心形',
+                round: '圆形'
+            };
+            const glassesMap = {
+                none: '无眼镜',
+                common: '普通眼镜',
+                sun: '太阳镜'
+            };
+            const maskMap = {
+                0: '没戴口罩',
+                1: '戴口罩'
+            };
+            const emotionMap = {
+                angry: '愤怒',
+                disgust: '厌恶',
+                fear: '恐惧',
+                happy: '开心',
+                sad: '伤心',
+                surprise: '惊讶',
+                neutral: '平静',
+                pouty: '撅嘴',
+                grimace: '鬼脸'
+            };
+            faceList.forEach((f, idx) => {
+                const loc = f.location || {};
+                const coordStr = fmtFaceCenter(loc);
+
+                const genderObj = f.gender || {};
+                const genderType = genderObj.type;
+                const genderCN = genderMap[genderType] || '-';
+                const genderInterval = probToInterval(genderObj.probability);
+
+                const faceShapeObj = f.face_shape || {};
+                const faceShapeType = faceShapeObj.type;
+                const faceShapeCN = faceShapeMap[faceShapeType] || faceShapeType || '-';
+
+                const glassesObj = f.glasses || {};
+                const glassesType = glassesObj.type;
+                const glassesCN = glassesMap[glassesType] || '-';
+                const glassesInterval = probToInterval(glassesObj.probability);
+
+                const maskObj = f.mask || {};
+                const maskType = maskObj.type;
+                const maskCN = maskMap[maskType] || '未知';
+                const maskInterval = probToInterval(maskObj.probability);
+
+                const emotionObj = f.emotion || {};
+                const emotionType = emotionObj.type;
+                const emotionCN = emotionMap[emotionType] || emotionType || '-';
+                const emotionInterval = probToInterval(emotionObj.probability);
+
+                let eyeStatusCN = [];
+                const eyeStatus = f.eye_status || {};
+                if (eyeStatus.left_eye != null) {
+                    eyeStatusCN.push(eyeStatus.left_eye > 0.5 ? '左眼睁开' : '左眼闭上');
+                }
+                if (eyeStatus.right_eye != null) {
+                    eyeStatusCN.push(eyeStatus.right_eye > 0.5 ? '右眼睁开' : '右眼闭上');
+                }
+                const eyeStatusText = eyeStatusCN.length > 0 ? eyeStatusCN.join('、') : '-';
+
+                // 说明：interval 以第二行小字显示；坐标与人脸中心一致，便于对照教室位置
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + (idx + 1) + '</td>' +
+                    '<td>' + coordStr + '</td>' +
+                    '<td>' + genderCN + '<div class="text-xs text-gray-500 mt-1">' + genderInterval + '</div></td>' +
+                    '<td>' + faceShapeCN + '</td>' +
+                    '<td>' + glassesCN + '<div class="text-xs text-gray-500 mt-1">' + glassesInterval + '</div></td>' +
+                    '<td>' + maskCN + '<div class="text-xs text-gray-500 mt-1">' + maskInterval + '</div></td>' +
+                    '<td>' + emotionCN + '<div class="text-xs text-gray-500 mt-1">' + emotionInterval + '</div></td>' +
+                    '<td>' + eyeStatusText + '</td>' +
+                    '</tr>'
+                );
+            });
+        } else {
+            $('#allFacesCard').hide();
+        }
+        
+        // 显示结果区域
+        resultSection.addClass('show');
+    }
+
+    // 分级显示：点击标题折叠/展开（初始全部显示）
+    function setupCollapse(headerId, bodyId, toggleId) {
+        $(headerId).on('click', function() {
+            const $body = $(bodyId);
+            const $icon = $(toggleId);
+            if ($body.is(':visible')) {
+                $body.slideUp();
+                $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+            } else {
+                $body.slideDown();
+                $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+            }
+        });
+    }
+    setupCollapse('#classroomStatsHeader', '#classroomStatsBody', '#classroomStatsToggle');
+    setupCollapse('#focusStudentsHeader', '#focusStudentsBody', '#focusStudentsToggle');
+    setupCollapse('#facesDetailHeader', '#facesDetailBody', '#facesDetailToggle');
+});
+</script>
+{% endblock %}

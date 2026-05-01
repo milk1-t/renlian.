@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}人脸表情识别系统{% endblock %}</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJtSURBVFiF7ZZNaBNBGIafmd1NstmkaRIlVKKIglz04sGDCxEXwcGDePDgxYMI4sGFB1EXwcGDeBB0EQQXL0EQxIN48ODBi1JFaZVWrdPdzO7seBh1kyZpNy2i4A+W2Z15+/bNf2Z2Af8ziIhXAXgJwMsAXAWAAiIyAK4BcBnA0+T7fwK4CeA+AK8A8BqA+wB0ABgG8CKAjwH4FYBXAKgAeBfAFQB9AH4AcBvAnwD+CuAygKcBvA7gLQDvArgM4EMAKgDuAvgEwKcAPgXwJYBvAfgCwLcAfgPwF4B/APgngL8D+CeAfwH4N4B/A/gPgP8C+B+A/wH4P4D/B/h/gP8H+H+A/wf4f4D/B/h/gP8H+H+A/wf4f4D/B/h/gP8H+H+A/wcIAPgBA/4fIADgBwQA/AAAAABJRU5ErkJggg==">
+
+    <script src="{{ url_for('static', filename='framework/jquery-1.11.3.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='new/tailwindcss.js') }}"></script>
+    <script src="{{ url_for('static', filename='new/layer.js') }}"></script>
+    <link href="{{ url_for('static', filename='new/layer.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='new/font-awesome.min.css') }}" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .sidebar-item {
+                @apply flex items-center px-4 py-3 text-gray-300 hover:bg-blue-900/30 hover:text-cyan-400 transition-all duration-200 cursor-pointer;
+            }
+            .sidebar-item.active {
+                @apply bg-blue-900/50 text-cyan-400 font-medium;
+            }
+            .card {
+                @apply bg-gray-900/80 rounded-lg shadow-lg p-5 transition-all duration-300 hover:shadow-cyan-500/20 border border-gray-700;
+            }
+            .btn-primary {
+                @apply bg-cyan-500 text-gray-900 py-2 px-4 rounded hover:bg-cyan-400 transition-all duration-200 shadow-lg shadow-cyan-500/20;
+            }
+            .input-field {
+                @apply bg-gray-800 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white;
+            }
+        }
+    </style>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #3b82f6;
+            --bg-dark: #f8fafc;
+            --bg-light: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --glow-color: rgba(37, 99, 235, 0.3);
+        }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            background-attachment: fixed;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--primary-color);
+        }
+        
+        .loading {
+            border: 3px solid rgba(37, 99, 235, 0.3);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: #64748b;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .sidebar-item:hover {
+            background-color: rgba(37, 99, 235, 0.1);
+            color: #2563eb;
+        }
+        
+        .sidebar-item.active {
+            background-color: rgba(37, 99, 235, 0.15);
+            color: #2563eb;
+            font-weight: 500;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen">
+    {% if 'username' in session %}
+    <!-- 已登录状态：显示导航栏 -->
+    <div class="flex flex-col min-h-screen">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-lg w-full border-b border-gray-200 z-50">
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center h-16">
+                    <!-- 左侧：logo -->
+                    <a href="{{ url_for('detect') }}" class="text-xl font-bold text-blue-600 flex items-center">
+                        <i class="fa fa-user-circle-o mr-2"></i>
+                        人脸表情识别系统
+                    </a>
+
+                    <!-- 右侧：导航菜单 -->
+                    <nav class="hidden md:flex items-center space-x-4">
+                        <a href="{{ url_for('detect') }}" class="sidebar-item {% if request.endpoint == 'detect' %}active{% endif %}">
+                            <i class="fa fa-camera mr-2"></i> 人脸识别
+                        </a>
+                        <a href="{{ url_for('stats') }}" class="sidebar-item {% if request.endpoint == 'stats' %}active{% endif %}">
+                            <i class="fa fa-bar-chart mr-2"></i> 统计看板
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="sidebar-item">
+                            <i class="fa fa-sign-out mr-2"></i> 退出登录
+                        </a>
+                    </nav>
+
+                    <!-- 移动端菜单按钮 -->
+                    <button class="md:hidden text-gray-600 hover:text-blue-600" id="sidebar-toggle">
+                        <i class="fa fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 页面内容 -->
+        <main class="flex-1 overflow-y-auto p-5">
+            {% block content %}{% endblock %}
+        </main>
+        
+        <!-- 底部 -->
+        <footer class="bg-white border-t border-gray-200 py-4 text-center">
+            <p class="text-gray-500 text-sm">
+                <i class="fa fa-copyright mr-1"></i>
+                2026 人脸表情识别系统 - 百度AI开放平台
+            </p>
+        </footer>
+    </div>
+    {% else %}
+    <!-- 未登录状态 -->
+    <div class="flex justify-center items-center min-h-screen">
+        {% block auth_content %}{% endblock %}
+    </div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <script>
+            {% for msg in messages %}
+                layer.msg("{{ msg }}");
+            {% endfor %}
+        </script>
+      {% endif %}
+    {% endwith %}
+
+    {% block extra_js %}{% endblock %}
+
+    <script>
+    $(document).ready(function(){
+        // 侧边栏切换（移动端）
+        $('#sidebar-toggle').click(function(){
+            $('nav').toggleClass('hidden');
+        });
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}统计看板 - 人脸表情识别系统{% endblock %}
+
+{% block breadcrumb %}统计看板{% endblock %}
+
+{% block extra_css %}
+<style>
+    .result-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+    }
+    .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; gap: 12px; }
+    .result-item:last-child { border-bottom: none; }
+    .result-label { color: #64748b; font-size: 14px; }
+    .result-value { font-weight: 600; color: #1e293b; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; text-align: left; vertical-align: top; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+    .pill-warn { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .pill-danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    .btn { padding: 10px 18px; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25); }
+    .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+    .btn-danger:hover { transform: translateY(-1px); }
+    .btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+    .loading-spinner { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .history-item { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .history-item:hover { background: #f8fafc; }
+    .history-item.selected { background: #eff6ff; border-left: 3px solid #2563eb; }
+    .history-item input[type="checkbox"] { margin: 0; }
+    .btn-delete-one { background: none; border: none; cursor: pointer; padding: 2px 6px; }
+    .preview-image { max-width: 100%; max-height: 200px; border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- 左侧：历史记录列表 -->
+    <div class="content-card lg:col-span-1">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa fa-history mr-2 text-blue-500"></i>识别记录
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="flex gap-2 mb-4">
+                <button type="button" class="btn btn-primary" id="btnRefresh">
+                    <i class="fa fa-refresh mr-2"></i>刷新
+                </button>
+                <button type="button" class="btn btn-danger" id="btnDeleteSelected" style="display:none;">
+                    <i class="fa fa-trash mr-2"></i>删除选中
+                </button>
+            </div>
+            <div id="loadingSection" class="text-center py-6" style="display:none;">
+                <div class="loading-spinner mb-3"></div>
+                <p class="text-gray-600">加载中...</p>
+            </div>
+            <div id="historyList" class="max-h-96 overflow-y-auto"></div>
+            <div id="historyEmpty" class="text-center py-8 text-gray-500" style="display:none;">
+                暂无记录，请先在“人脸识别”页面上传图片
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：统计结果与图片 -->
+    <div class="content-card lg:col-span-2">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fa fa-bar-chart mr-2 text-blue-500"></i>统计结果
+            </h3>
+        </div>
+        <div class="card-body">
+            <div id="emptyTip" class="text-center py-12 text-gray-500">
+                请从左侧选择一条记录查看
+            </div>
+
+            <div id="statsWrap" style="display:none;">
+                <!-- 识别图片 -->
+                <div class="result-card" id="imageCard">
+                    <h4 class="font-semibold text-gray-800 mb-3">
+                        <i class="fa fa-image mr-2 text-blue-500"></i>识别图片
+                    </h4>
+                    <img id="previewImage" class="preview-image" src="" alt="识别图片" style="display:none;">
+                </div>
+
+                <div class="result-card">
+                    <h4 class="font-semibold text-gray-800 mb-3">
+                        <i class="fa fa-users mr-2 text-blue-500"></i>总体概览
+                    </h4>
+                    <div class="result-item">
+                        <span class="result-label">检测到人数</span>
+                        <span class="result-value" id="statTotalFaces">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">状态良好</span>
+                        <span class="result-value" id="statGood">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">需要关注 / 需要重点关注</span>
+                        <span class="result-value" id="statCare">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">二级情绪分布</span>
+                        <span class="result-value" id="statSecondaryEmotion">-</span>
+                    </div>
+                </div>
+
+                <div class="result-card" id="focusCard">
+                    <h4 class="font-semibold text-gray-800 mb-3">
+                        <i class="fa fa-exclamation-circle mr-2 text-blue-500"></i>重点关注（人脸坐标）
+                    </h4>
+                    <div id="focusEmpty" class="text-sm text-gray-500" style="display:none;">本次未发现需要重点关注的学生。</div>
+                    <div class="overflow-x-auto">
+                        <table class="table" id="focusTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>人脸坐标</th>
+                                    <th>情绪</th>
+                                    <th>置信区间</th>
+                                    <th>原因</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <h4 class="font-semibold text-gray-800 mb-3">
+                        <i class="fa fa-list mr-2 text-blue-500"></i>明细（每张脸）
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="table" id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>人脸坐标</th>
+                                    <th>二级情绪</th>
+                                    <th>原始情绪</th>
+                                    <th>置信区间</th>
+                                    <th>心理状态</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let currentList = [];
+    const baseUrl = '{{ request.url_root }}';
+
+    function setLoading(loading) {
+        if (loading) {
+            $('#loadingSection').show();
+            $('#historyList').hide();
+        } else {
+            $('#loadingSection').hide();
+            $('#historyList').show();
+        }
+    }
+
+    function formatInterval(prob) {
+        if (prob == null) return '-';
+        const p = prob * 100;
+        const low = Math.max(0, (p - 5)).toFixed(1);
+        const high = Math.min(100, (p + 5)).toFixed(1);
+        return low + '%-' + high + '%';
+    }
+
+    function render(payload) {
+        const stats = payload && payload.stats ? payload.stats : null;
+        const faces = payload && payload.faces ? payload.faces : [];
+        const imageUrl = payload && payload.image_url ? (baseUrl + payload.image_url) : '';
+
+        if (!stats) {
+            $('#emptyTip').show();
+            $('#statsWrap').hide();
+            return;
+        }
+
+        $('#emptyTip').hide();
+        $('#statsWrap').show();
+
+        if (imageUrl) {
+            $('#previewImage').attr('src', imageUrl).show();
+        } else {
+            $('#previewImage').hide();
+        }
+
+        $('#statTotalFaces').text(stats.total_faces != null ? stats.total_faces : '-');
+        const sc = stats.status_counts || {};
+        const good = sc['状态良好'] || 0;
+        const watch = sc['需要关注'] || 0;
+        const focus = sc['需要重点关注'] || 0;
+        $('#statGood').text(good);
+        $('#statCare').text(watch + ' / ' + focus);
+
+        const secCounts = stats.secondary_emotion_counts || {};
+        const secParts = Object.keys(secCounts).map(k => k + ' ' + secCounts[k] + '人');
+        $('#statSecondaryEmotion').text(secParts.length ? secParts.join('，') : '-');
+
+        const focusStudents = stats.focus_students || [];
+        const fTbody = $('#focusTable tbody');
+        fTbody.empty();
+        if (!focusStudents.length) {
+            $('#focusEmpty').show();
+            $('#focusTable').hide();
+        } else {
+            $('#focusEmpty').hide();
+            $('#focusTable').show();
+            focusStudents.forEach(item => {
+                const center = item.face_center || {};
+                const xy = (center.x != null && center.y != null) ? '(' + Math.round(center.x) + ', ' + Math.round(center.y) + ')' : '-';
+                const emo = item.emotion || '-';
+                const interval = formatInterval(item.emotion_prob);
+                const reason = item.reason || '-';
+                fTbody.append('<tr><td>' + xy + '</td><td>' + emo + '</td><td>' + interval + '</td><td>' + reason + '</td></tr>');
+            });
+        }
+
+        const dTbody = $('#detailTable tbody');
+        dTbody.empty();
+        (faces || []).forEach(function(f, idx) {
+            const center = f.face_center || {};
+            const xy = (center.x != null && center.y != null) ? '(' + Math.round(center.x) + ', ' + Math.round(center.y) + ')' : '-';
+            const sec = f.secondary_emotion_cn || '-';
+            const emo = f.emotion_cn || '-';
+            const interval = formatInterval(f.emotion_prob);
+            const psych = (f.psych && f.psych.status_cn) ? f.psych.status_cn : '-';
+            let pillClass = 'pill';
+            if (psych === '需要关注') pillClass = 'pill pill-warn';
+            if (psych === '需要重点关注') pillClass = 'pill pill-danger';
+            dTbody.append('<tr><td>' + (idx + 1) + '</td><td>' + xy + '</td><td>' + sec + '</td><td>' + emo + '</td><td>' + interval + '</td><td><span class="' + pillClass + '">' + psych + '</span></td></tr>');
+        });
+    }
+
+    function loadList() {
+        setLoading(true);
+        $.ajax({
+            url: '{{ url_for("api_analysis_list") }}',
+            type: 'GET',
+            success: function(resp) {
+                setLoading(false);
+                currentList = resp.list || [];
+                const $list = $('#historyList');
+                $list.empty();
+                if (!currentList.length) {
+                    $('#historyEmpty').show();
+                    $('#historyList').hide();
+                    return;
+                }
+                $('#historyEmpty').hide();
+                $('#historyList').show();
+                currentList.forEach(function(r, idx) {
+                    const num = idx + 1;
+                    const dt = r.created_at_fmt || r.created_at || '-';
+                    $list.append('<div class="history-item" data-id="' + r.id + '">' +
+                        '<input type="checkbox" class="cb-select" value="' + r.id + '">' +
+                        '<span class="flex-1">#' + num + ' ' + dt + '</span>' +
+                        '<button type="button" class="btn-delete-one text-red-500 hover:text-red-700 text-sm" data-id="' + r.id + '" title="删除"><i class="fa fa-trash"></i></button></div>');
+                });
+                $('.history-item').on('click', function(e) {
+                    if (!$(e.target).is('input')) {
+                        $('.history-item').removeClass('selected');
+                        $(this).addClass('selected');
+                        loadDetail($(this).data('id'));
+                    }
+                });
+                $('.cb-select').on('click', function(e) { e.stopPropagation(); updateDeleteBtn(); });
+                $('.btn-delete-one').on('click', function(e) {
+                    e.stopPropagation();
+                    const id = $(this).data('id');
+                    layer.confirm('确定删除此记录？', {icon: 3}, function(idx) {
+                        $.ajax({
+                            url: '{{ url_for("api_analysis_delete") }}',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ ids: [id] }),
+                            success: function(resp) {
+                                layer.close(idx);
+                                layer.msg('已删除', {icon: 1});
+                                loadList();
+                            },
+                            error: function() { layer.msg('删除失败', {icon: 2}); }
+                        });
+                    });
+                });
+                if (currentList.length) loadDetail(currentList[0].id);
+            },
+            error: function() {
+                setLoading(false);
+                layer.msg('加载失败', {icon: 2});
+            }
+        });
+    }
+
+    function loadDetail(id) {
+        $.ajax({
+            url: '{{ url_for("api_analysis_detail", record_id=0) }}'.replace('0', id),
+            type: 'GET',
+            success: function(resp) {
+                if (resp.error) {
+                    layer.msg(resp.error, {icon: 2});
+                    return;
+                }
+                render(resp);
+            },
+            error: function() { layer.msg('加载详情失败', {icon: 2}); }
+        });
+    }
+
+    function updateDeleteBtn() {
+        const n = $('.cb-select:checked').length;
+        $('#btnDeleteSelected').toggle(n > 0);
+    }
+
+    $('#btnRefresh').on('click', loadList);
+    $('#btnDeleteSelected').on('click', function() {
+        const ids = $('.cb-select:checked').map(function() { return $(this).val(); }).get();
+        if (!ids.length) return;
+        layer.confirm('确定删除选中的 ' + ids.length + ' 条记录？', {icon: 3}, function(idx) {
+            $.ajax({
+                url: '{{ url_for("api_analysis_delete") }}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ ids: ids }),
+                success: function(resp) {
+                    layer.close(idx);
+                    layer.msg('已删除 ' + (resp.deleted || 0) + ' 条', {icon: 1});
+                    loadList();
+                },
+                error: function() { layer.msg('删除失败', {icon: 2}); }
+            });
+        });
+    });
+
+    loadList();
+});
+</script>
+{% endblock %}

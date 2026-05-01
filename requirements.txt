@@ -1,0 +1,7 @@
+Flask>=2.0.0
+requests>=2.25.0
+PyMySQL>=1.0.0
+numpy
+opencv-python
+onnxruntime
+matplotlib
